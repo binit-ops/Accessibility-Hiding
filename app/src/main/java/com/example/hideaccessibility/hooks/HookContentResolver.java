@@ -45,7 +45,6 @@ public class HookContentResolver {
 
                         String uriString = uri.toString();
 
-                        // Check if querying secure settings
                         if (uriString.contains("settings/secure")) {
                             Cursor cursor = (Cursor) param.getResult();
                             if (cursor != null) {
@@ -106,7 +105,7 @@ public class HookContentResolver {
             }
         }
 
-        // ── Delegate all other methods ──
+        // ── Delegate all remaining Cursor methods ──
 
         @Override public int getCount() { return mCursor.getCount(); }
         @Override public int getPosition() { return mCursor.getPosition(); }
@@ -133,6 +132,11 @@ public class HookContentResolver {
         @Override public boolean isNull(int columnIndex) { return mCursor.isNull(columnIndex); }
         @Override public boolean isClosed() { return mCursor.isClosed(); }
         @Override public void close() { mCursor.close(); }
+
+        // FIXED: requery() is abstract in Cursor — must be implemented
+        @Deprecated
+        @Override public boolean requery() { return mCursor.requery(); }
+
         @Override public void registerContentObserver(android.database.ContentObserver observer) { mCursor.registerContentObserver(observer); }
         @Override public void unregisterContentObserver(android.database.ContentObserver observer) { mCursor.unregisterContentObserver(observer); }
         @Override public void registerDataSetObserver(android.database.DataSetObserver observer) { mCursor.registerDataSetObserver(observer); }
@@ -144,9 +148,7 @@ public class HookContentResolver {
         @Override public android.os.Bundle getExtras() { return mCursor.getExtras(); }
         @Override public android.os.Bundle respond(android.os.Bundle extras) { return mCursor.respond(extras); }
 
-        @Deprecated
-        @Override public void setNotificationUri(ContentResolver cr, Uri notifyUri, boolean syncToNetwork) {
-            mCursor.setNotificationUri(cr, notifyUri, syncToNetwork);
-        }
+        // REMOVED: the 3-arg setNotificationUri(ContentResolver, Uri, boolean)
+        // — that overload does not exist in the public Cursor interface
     }
 }
