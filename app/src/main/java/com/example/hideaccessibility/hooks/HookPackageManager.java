@@ -1,15 +1,11 @@
 package com.example.hideaccessibility.hooks;
 
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.content.pm.ServiceInfo;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +16,9 @@ import com.example.hideaccessibility.util.Logger;
 public class HookPackageManager {
 
     private static final String TAG = "HideA11y-PM";
+    private static final String A11Y_SERVICE_ACTION =
+        "android.accessibilityservice.AccessibilityService";
+
     private final XC_LoadPackage.LoadPackageParam lpparam;
     private final ConfigManager config;
 
@@ -33,116 +32,89 @@ public class HookPackageManager {
             return;
         }
         hookQueryIntentServices();
-        hookGetInstalledPackages();
-        hookGetPackageInfo();
     }
 
     /**
-     * Hook PackageManager.queryIntentServices for ACCESSIBILITY_SERVICE intent
+     * Apps can discover accessibility services by querying for the
+     * ACCESSIBILITY_SERVICE intent action via PackageManager directly,
+     * bypassing AccessibilityManager entirely.
      */
     private void hookQueryIntentServices() {
         try {
-            // Hook the abstract method on PackageManager
             Class<?> pmClass = XposedHelpers.findClass(
                 "android.app.ApplicationPackageManager", lpparam.classLoader);
 
-            XposedHelpers.findAndHookMethod(
-                pmClass,
-                "queryIntentServices",
-                Intent.class, int.class,
-                new XC_MethodHookMethod())
-                : null;
+            // queryIntentServices(Intent, int)
+            try {
+                XposedHelpers.findAndHookMethod(
+                    pmClass, "queryIntentServices",
+                    Intent.class, int.class,
+                    serviceListHook());
+                Logger.debug(TAG, "Hooked queryIntentServices(Intent, int)");
+            } catch (Throwable ignored) {
+                // Method signature may vary across Android versions
+            }
+
+            // queryIntentServices(Intent, int, int) — userId variant (API 24+)
+            try {
+                XposedHelpers.findAndHookMethod(
+                    pmClass, "queryIntentServices",
+                    Intent.class, int.class, int.class,
+                    serviceListHook());
+                Logger.debug(TAG, "Hooked queryIntentServices(Intent, int, int)");
+            } catch (Throwable ignored) {
+            }
 
         } catch (Throwable t) {
             Logger.error(TAG, "queryIntentServices hook failed: " + t.getMessage());
         }
     }
 
+    /**
+     * Shared hook: filters hidden accessibility services out of
+     * PackageManager service query results.
+     */
     private XC_MethodHook serviceListHook() {
         return new XC_MethodHook() {
             @Override
+            @SuppressWarnings("unchecked")
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 Object result = param.getResult();
-                if (result instanceof List) {
-                    List<Object> list = (List<Object>) result;
-                    List<Object> filtered = new ArrayList<>();
+                if (!(result instanceof List)) return;
 
-                    for (Object item : list) {
-                        if (item instanceof ResolveInfo) {
-                            ResolveInfo ri = (ResolveInfo) item;
-                            if (ri.serviceInfo != null) {
-                                String packageName = ri.serviceInfo.packageName;
-                                String className = ri.serviceInfo.name;
-                                String fullId = packageName + "/" + className;
+                Intent intent = (Intent) param.args[0];
+                if (intent == null) return;
 
-                                if (!config.isServiceHidden(fullId)) {
-                                    filtered.add(item);
-                                } else {
-                                    Logger.debug(TAG, "Hid service from query: " + fullId);
-                                }
-                            } else {
-                                filtered.add(item);
+                // Only filter accessibility service queries —
+                // don't touch unrelated service lookups
+                if (!Intent.ACTION_ACCESSIBILITY_SERVICE.equals(intent.getAction())
+                        && !A11Y_SERVICE_ACTION.equals(intent.getAction())) {
+                    return;
+                }
+
+                List<Object> list = (List<Object>) result;
+                List<Object> filtered = new ArrayList<>();
+
+                for (Object item : list) {
+                    if (item instanceof ResolveInfo) {
+                        ResolveInfo ri = (ResolveInfo) item;
+                        if (ri.serviceInfo != null) {
+                            String fullId = ri.serviceInfo.packageName
+                                    + "/" + ri.serviceInfo.name;
+
+                            if (config.isServiceHidden(fullId)) {
+                                Logger.debug(TAG, "Hid service from PM query: " + fullId);
+                                continue; // skip — this one is hidden
                             }
-                        } else {
-                            filtered.add(item);
                         }
                     }
+                    filtered.add(item);
+                }
 
+                if (filtered.size() != list.size()) {
                     param.setResult(filtered);
                 }
             }
         };
-    }
-
-    /**
-     * Hook getInstalledPackages to potentially hide our module package
-     */
-    private void hookGetInstalledPackages() {
-        try {
-            Class<?> pmClass = XposedHelpers.findClass(
-                "android.app.ApplicationPackageManager", lpparam.classLoader);
-
-            XposedHelpers.findAndHookMethod(
-                pmClass,
-                "getInstalledPackages",
-                int.class,
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        // We could filter out our module package here
-                        // But this is aggressive and may break things
-                        // Only filter if specifically configured
-                    }
-                }
-            );
-        } catch (Throwable t) {
-            Logger.error(TAG, "getInstalledPackages hook failed: " + t.getMessage());
-        }
-    }
-
-    /**
-     * Hook getPackageInfo to hide our module if queried directly
-     */
-    private void hookGetPackageInfo() {
-        try {
-            Class<?> pmClass = XposedHelpers.findClass(
-                "android.app.ApplicationPackageManager", lpparam.classLoader);
-
-            XposedHelpers.findAndHookMethod(
-                pmClass,
-                "getPackageInfo",
-                String.class, int.class,
-                new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                        String packageName = (String) param.args[0];
-                        // Could throw NameNotFoundException for our module package
-                        // This is aggressive; use with caution
-                    }
-                }
-            );
-        } catch (Throwable t) {
-            Logger.error(TAG, "getPackageInfo hook failed: " + t.getMessage());
-        }
     }
 }
