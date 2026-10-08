@@ -148,6 +148,10 @@ public class HookContentResolver {
         @Override public android.os.Bundle getExtras() { return mCursor.getExtras(); }
         @Override public android.os.Bundle respond(android.os.Bundle extras) { return mCursor.respond(extras); }
 
+        // FIXED: deactivate() is abstract in Cursor — must be implemented
+        @Deprecated
+        @Override public void deactivate() { mCursor.deactivate(); }
+        
         // REMOVED: the 3-arg setNotificationUri(ContentResolver, Uri, boolean)
         // — that overload does not exist in the public Cursor interface
     }
