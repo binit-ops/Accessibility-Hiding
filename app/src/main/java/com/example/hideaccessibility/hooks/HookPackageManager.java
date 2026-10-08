@@ -84,11 +84,11 @@ public class HookPackageManager {
 
                 Intent intent = (Intent) param.args[0];
                 if (intent == null) return;
-
+                
                 // Only filter accessibility service queries —
                 // don't touch unrelated service lookups
-                if (!Intent.ACTION_ACCESSIBILITY_SERVICE.equals(intent.getAction())
-                        && !A11Y_SERVICE_ACTION.equals(intent.getAction())) {
+                String action = intent.getAction();
+                if (action == null || !A11Y_SERVICE_ACTION.equals(action)) {
                     return;
                 }
 
