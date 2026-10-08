@@ -5,26 +5,18 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.content.Intent;
 import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.hideaccessibility.R;
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.example.hideaccessibility.util.PrefsUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -50,12 +42,24 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_WORLD_READABLE);
+        // MODE_PRIVATE + manual chmod — MODE_WORLD_READABLE
+        // throws SecurityException on Android 7+
+        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        PrefsUtils.makeWorldReadable(this, PREFS_NAME);
 
         initViews();
         loadConfig();
         loadServices();
         loadTargetApps();
+    }
+
+    /**
+     * Synchronous save, then re-apply world-readable permissions
+     * so XSharedPreferences in the hook process can read the file.
+     */
+    private void save(SharedPreferences.Editor editor) {
+        editor.commit();
+        PrefsUtils.makeWorldReadable(this, PREFS_NAME);
     }
 
     private void initViews() {
@@ -76,17 +80,15 @@ public class MainActivity extends AppCompatActivity
         targetsRecycler.setAdapter(targetAdapter);
 
         hideAllSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            prefs.edit().putBoolean("hide_all", isChecked).apply();
+            save(prefs.edit().putBoolean("hide_all", isChecked));
             updateStatus();
         });
 
-        touchExplorationSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            prefs.edit().putBoolean("hide_touch_exploration", isChecked).apply();
-        });
+        touchExplorationSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
+            save(prefs.edit().putBoolean("hide_touch_exploration", isChecked)));
 
-        verboseSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            prefs.edit().putBoolean("verbose_logging", isChecked).apply();
-        });
+        verboseSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
+            save(prefs.edit().putBoolean("verbose_logging", isChecked)));
     }
 
     private void loadConfig() {
@@ -96,13 +98,14 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void loadServices() {
-        // List all accessibility services on the device
         android.view.accessibility.AccessibilityManager am =
             (android.view.accessibility.AccessibilityManager)
                 getSystemService(Context.ACCESSIBILITY_SERVICE);
 
         List<AccessibilityServiceInfo> installed =
             am.getInstalledAccessibilityServiceList();
+
+        if (installed == null) return;
 
         Set<String> hiddenSet = prefs.getStringSet("hidden_services", new HashSet<>());
 
@@ -124,7 +127,6 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void loadTargetApps() {
-        // Show installed apps for selecting targets
         PackageManager pm = getPackageManager();
         List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
 
@@ -132,12 +134,17 @@ public class MainActivity extends AppCompatActivity
 
         List<TargetAppAdapter.TargetAppItem> items = new ArrayList<>();
         for (ApplicationInfo appInfo : apps) {
-            // Skip system apps unless explicitly wanted
             String appName = pm.getApplicationLabel(appInfo).toString();
             String packageName = appInfo.packageName;
             boolean isTarget = targetSet.contains(packageName);
             items.add(new TargetAppAdapter.TargetAppItem(packageName, appName, isTarget));
         }
+
+        // Sort: targeted apps first, then alphabetical
+        items.sort((a, b) -> {
+            if (a.isTarget != b.isTarget) return a.isTarget ? -1 : 1;
+            return a.appName.compareToIgnoreCase(b.appName);
+        });
 
         targetAdapter.setItems(items);
     }
@@ -153,7 +160,8 @@ public class MainActivity extends AppCompatActivity
             hiddenSet.remove(serviceId);
         }
 
-        prefs.edit().putStringSet("hidden_services", hiddenSet).apply();
+        save(prefs.edit().putStringSet("hidden_services", hiddenSet));
+        updateStatus();
     }
 
     @Override
@@ -167,7 +175,7 @@ public class MainActivity extends AppCompatActivity
             targetSet.remove(packageName);
         }
 
-        prefs.edit().putStringSet("target_packages", targetSet).apply();
+        save(prefs.edit().putStringSet("target_packages", targetSet));
         updateStatus();
     }
 
