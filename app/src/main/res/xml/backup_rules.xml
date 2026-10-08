@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Config is safe to back up — makes restoring after reflash easy -->
+    <include domain="sharedpref" path="module_config.xml"/>
+</full-backup-content>
