@@ -77,4 +77,4 @@ public class MainHook implements IXposedHookLoadPackage {
             XposedBridge.log(t);
         }
     }
-              }
+}
