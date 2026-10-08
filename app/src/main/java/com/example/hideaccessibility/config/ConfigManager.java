@@ -3,7 +3,6 @@ package com.example.hideaccessibility.config;
 import de.robv.android.xposed.XSharedPreferences;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -68,9 +67,6 @@ public class ConfigManager {
     public boolean isServiceHidden(String serviceId) {
         if (hideAll) return true;
         if (serviceId == null || serviceId.isEmpty()) return false;
-
-        // Normalize service ID (may be ComponentName format)
-        String normalized = serviceId.contains("/") ? serviceId : serviceId;
 
         for (String hidden : hiddenServices) {
             if (serviceId.contains(hidden) || hidden.contains(serviceId)) {
