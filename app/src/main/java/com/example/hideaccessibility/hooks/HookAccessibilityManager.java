@@ -1,14 +1,12 @@
 package com.example.hideaccessibility.hooks;
 
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.view.accessibility.AccessibilityManager;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,35 +74,18 @@ public class HookAccessibilityManager {
     }
 
     /**
-     * Hook any additional service list method variants across Android versions
+     * Hook additional service list method variants across Android versions
      */
     private void hookGetEnabledAccessibilityServiceListVariants() {
         try {
-            // Some OEMs / Android versions have additional methods
-            Class<?> amClass = AccessibilityManager.class;
-
-            // Try hooking getAccessibilityServiceList (deprecated but still used)
+            // getAccessibilityServiceList (deprecated but still used)
             try {
                 XposedHelpers.findAndHookMethod(
-                    amClass, "getAccessibilityServiceList", int.class,
+                    AccessibilityManager.class, "getAccessibilityServiceList", int.class,
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                             filterServiceListResult(param);
-                        }
-                    }
-                );
-            } catch (Throwable ignored) {}
-
-            // Hook sendAccessibilityEvent to potentially block event observation
-            try {
-                XposedHelpers.findAndHookMethod(
-                    amClass, "sendAccessibilityEvent", int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                            // Don't block events entirely - could cause crashes
-                            // Just monitor
                         }
                     }
                 );
