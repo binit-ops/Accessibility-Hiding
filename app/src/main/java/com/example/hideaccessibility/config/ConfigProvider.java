@@ -8,6 +8,8 @@ import android.database.MatrixCursor;
 import android.net.Uri;
 import android.content.Context;
 
+import com.example.hideaccessibility.util.PrefsUtils;
+
 public class ConfigProvider extends ContentProvider {
 
     public static final String AUTHORITY = "com.example.hideaccessibility.config";
@@ -19,7 +21,9 @@ public class ConfigProvider extends ContentProvider {
     public boolean onCreate() {
         Context context = getContext();
         if (context != null) {
-            prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_WORLD_READABLE);
+            // MODE_PRIVATE — MODE_WORLD_READABLE crashes on Android 7+
+            prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            PrefsUtils.makeWorldReadable(context, PREFS_NAME);
         }
         return prefs != null;
     }
@@ -36,6 +40,14 @@ public class ConfigProvider extends ContentProvider {
             String value = prefs.getString(key, null);
             if (value != null) {
                 cursor.addRow(new Object[]{key, value});
+            }
+        } else {
+            // Dump all string prefs
+            for (String key : prefs.getAll().keySet()) {
+                Object value = prefs.getAll().get(key);
+                if (value != null) {
+                    cursor.addRow(new Object[]{key, value.toString()});
+                }
             }
         }
 
