@@ -154,7 +154,7 @@ public class HookSettings {
                 }
                 break;
 
-            case Settings.Secure.ACCESSIBILITY_BUTTON_TARGETS:
+             case "accessibility_button_targets":
                 String targets = (String) param.getResult();
                 if (targets != null && !config.isHidingAllServices()) {
                     param.setResult(config.filterServiceList(targets));
