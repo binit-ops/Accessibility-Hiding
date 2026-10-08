@@ -1,7 +1,6 @@
 package com.example.hideaccessibility.hooks;
 
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
@@ -69,19 +68,16 @@ public class HookContentResolver {
 
         private final Cursor mCursor;
         private final ConfigManager mConfig;
-        private String mCurrentValue;
 
         FilteredCursor(Cursor cursor, ConfigManager config) {
             mCursor = cursor;
             mConfig = config;
         }
 
-        // Intercept getString for the value column
         @Override
         public String getString(int columnIndex) {
             String value = mCursor.getString(columnIndex);
 
-            // Determine if we're reading accessibility value
             int nameIndex = mCursor.getColumnIndex("name");
             if (nameIndex >= 0 && columnIndex == mCursor.getColumnIndex("value")) {
                 String name = mCursor.getString(nameIndex);
