@@ -35,8 +35,3 @@
 - [Issue tracker](https://github.com/binit-ops/accessibility-hiding/issues)
 - [Commit history](https://github.com/binit-ops/accessibility-hiding/commits/main)
 - [License (GPL-3.0)](https://github.com/binit-ops/accessibility-hiding/blob/main/LICENSE)
-
----
-
-**SHA-256:**
-
