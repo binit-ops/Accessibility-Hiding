@@ -128,6 +128,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fill Version in Template
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          sed -i "s/{VERSION}/$VERSION/g" .github/RELEASE_TEMPLATE.md
+          
   nightly:
     name: Nightly Build
     runs-on: ubuntu-latest
