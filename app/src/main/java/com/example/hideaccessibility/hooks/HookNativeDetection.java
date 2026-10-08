@@ -1,12 +1,10 @@
 package com.example.hideaccessibility.hooks;
 
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import java.io.File;
-import java.lang.reflect.Method;
 
 import com.example.hideaccessibility.config.ConfigManager;
 import com.example.hideaccessibility.util.Logger;
@@ -16,16 +14,6 @@ public class HookNativeDetection {
     private static final String TAG = "HideA11y-Native";
     private final XC_LoadPackage.LoadPackageParam lpparam;
     private final ConfigManager config;
-
-    // Common file paths checked for root/accessibility detection
-    private static final String[] HIDDEN_PATHS = {
-        "/proc/self/maps",      // Checking loaded libraries
-        "/system/xbin/su",
-        "/system/bin/su",
-        "/sbin/su",
-        "/data/local/xposed",
-        "/data/local/lspd",
-    };
 
     public HookNativeDetection(XC_LoadPackage.LoadPackageParam lpparam, ConfigManager config) {
         this.lpparam = lpparam;
@@ -39,7 +27,7 @@ public class HookNativeDetection {
     }
 
     /**
-     * Hook File.exists() to hide specific paths
+     * Hook File.exists() to hide framework artifacts
      */
     private void hookFileExists() {
         try {
@@ -108,10 +96,8 @@ public class HookNativeDetection {
      */
     private void hookRuntimeExec() {
         try {
-            Class<?> runtimeClass = Runtime.class;
-
             XposedHelpers.findAndHookMethod(
-                runtimeClass,
+                Runtime.class,
                 "exec",
                 String[].class, String[].class, File.class,
                 new XC_MethodHook() {
@@ -125,7 +111,6 @@ public class HookNativeDetection {
                                 cmd.contains("getprop") ||
                                 cmd.contains("settings"))) {
                                 Logger.debug(TAG, "Intercepted exec: " + cmd);
-                                // Could modify or allow through
                                 break;
                             }
                         }
