@@ -4,4 +4,10 @@
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryContainer">@color/primary_container</item>
     </style>
+
+    <!-- Rounded square app icons in list items -->
+    <style name="RoundedIcon">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
 </resources>
