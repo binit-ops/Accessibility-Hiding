@@ -6,6 +6,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import android.content.ContentResolver;
 import android.database.Cursor;
+import android.database.CursorWrapper;
 import android.net.Uri;
 
 import com.example.hideaccessibility.config.ConfigManager;
@@ -43,9 +44,7 @@ public class HookContentResolver {
                         Uri uri = (Uri) param.args[0];
                         if (uri == null) return;
 
-                        String uriString = uri.toString();
-
-                        if (uriString.contains("settings/secure")) {
+                        if (uri.toString().contains("settings/secure")) {
                             Cursor cursor = (Cursor) param.getResult();
                             if (cursor != null) {
                                 param.setResult(new FilteredCursor(cursor, config));
@@ -61,25 +60,26 @@ public class HookContentResolver {
     }
 
     /**
-     * FilteredCursor wraps a cursor and modifies accessibility-related values
+     * FilteredCursor extends CursorWrapper, which already implements and
+     * delegates ALL Cursor methods (including requery, deactivate, getType).
+     * We only override the two we need to modify.
      */
-    private static class FilteredCursor implements Cursor {
+    private static class FilteredCursor extends CursorWrapper {
 
-        private final Cursor mCursor;
         private final ConfigManager mConfig;
 
         FilteredCursor(Cursor cursor, ConfigManager config) {
-            mCursor = cursor;
+            super(cursor);
             mConfig = config;
         }
 
         @Override
         public String getString(int columnIndex) {
-            String value = mCursor.getString(columnIndex);
+            String value = super.getString(columnIndex);
 
-            int nameIndex = mCursor.getColumnIndex("name");
-            if (nameIndex >= 0 && columnIndex == mCursor.getColumnIndex("value")) {
-                String name = mCursor.getString(nameIndex);
+            int nameIndex = getColumnIndex("name");
+            if (nameIndex >= 0 && columnIndex == getColumnIndex("value")) {
+                String name = super.getString(nameIndex);
                 if (name != null) {
                     switch (name) {
                         case "enabled_accessibility_services":
@@ -97,62 +97,14 @@ public class HookContentResolver {
 
         @Override
         public int getInt(int columnIndex) {
+            // Route through our filtered getString() so integer reads
+            // also see the modified values
             String value = getString(columnIndex);
             try {
-                return value != null ? Integer.parseInt(value) : 0;
+                return value != null ? Integer.parseInt(value) : super.getInt(columnIndex);
             } catch (NumberFormatException e) {
-                return mCursor.getInt(columnIndex);
+                return super.getInt(columnIndex);
             }
         }
-
-        // ── Delegate all remaining Cursor methods ──
-
-        @Override public int getCount() { return mCursor.getCount(); }
-        @Override public int getPosition() { return mCursor.getPosition(); }
-        @Override public boolean move(int offset) { return mCursor.move(offset); }
-        @Override public boolean moveToPosition(int position) { return mCursor.moveToPosition(position); }
-        @Override public boolean moveToFirst() { return mCursor.moveToFirst(); }
-        @Override public boolean moveToLast() { return mCursor.moveToLast(); }
-        @Override public boolean moveToNext() { return mCursor.moveToNext(); }
-        @Override public boolean moveToPrevious() { return mCursor.moveToPrevious(); }
-        @Override public boolean isFirst() { return mCursor.isFirst(); }
-        @Override public boolean isLast() { return mCursor.isLast(); }
-        @Override public boolean isBeforeFirst() { return mCursor.isBeforeFirst(); }
-        @Override public boolean isAfterLast() { return mCursor.isAfterLast(); }
-        @Override public int getColumnIndex(String columnName) { return mCursor.getColumnIndex(columnName); }
-        @Override public int getColumnIndexOrThrow(String columnName) throws IllegalArgumentException { return mCursor.getColumnIndexOrThrow(columnName); }
-        @Override public String getColumnName(int columnIndex) { return mCursor.getColumnName(columnIndex); }
-        @Override public String[] getColumnNames() { return mCursor.getColumnNames(); }
-        @Override public int getColumnCount() { return mCursor.getColumnCount(); }
-        @Override public byte[] getBlob(int columnIndex) { return mCursor.getBlob(columnIndex); }
-        @Override public float getFloat(int columnIndex) { return mCursor.getFloat(columnIndex); }
-        @Override public long getLong(int columnIndex) { return mCursor.getLong(columnIndex); }
-        @Override public short getShort(int columnIndex) { return mCursor.getShort(columnIndex); }
-        @Override public double getDouble(int columnIndex) { return mCursor.getDouble(columnIndex); }
-        @Override public boolean isNull(int columnIndex) { return mCursor.isNull(columnIndex); }
-        @Override public boolean isClosed() { return mCursor.isClosed(); }
-        @Override public void close() { mCursor.close(); }
-
-        // FIXED: requery() is abstract in Cursor — must be implemented
-        @Deprecated
-        @Override public boolean requery() { return mCursor.requery(); }
-
-        @Override public void registerContentObserver(android.database.ContentObserver observer) { mCursor.registerContentObserver(observer); }
-        @Override public void unregisterContentObserver(android.database.ContentObserver observer) { mCursor.unregisterContentObserver(observer); }
-        @Override public void registerDataSetObserver(android.database.DataSetObserver observer) { mCursor.registerDataSetObserver(observer); }
-        @Override public void unregisterDataSetObserver(android.database.DataSetObserver observer) { mCursor.unregisterDataSetObserver(observer); }
-        @Override public void setNotificationUri(ContentResolver cr, Uri uri) { mCursor.setNotificationUri(cr, uri); }
-        @Override public Uri getNotificationUri() { return mCursor.getNotificationUri(); }
-        @Override public boolean getWantsAllOnMoveCalls() { return mCursor.getWantsAllOnMoveCalls(); }
-        @Override public void setExtras(android.os.Bundle extras) { mCursor.setExtras(extras); }
-        @Override public android.os.Bundle getExtras() { return mCursor.getExtras(); }
-        @Override public android.os.Bundle respond(android.os.Bundle extras) { return mCursor.respond(extras); }
-
-        // FIXED: deactivate() is abstract in Cursor — must be implemented
-        @Deprecated
-        @Override public void deactivate() { mCursor.deactivate(); }
-        
-        // REMOVED: the 3-arg setNotificationUri(ContentResolver, Uri, boolean)
-        // — that overload does not exist in the public Cursor interface
     }
 }
