@@ -2,4 +2,29 @@
 <resources>
     <string name="app_name">Hide Accessibility</string>
     <string name="xposed_description">Hides accessibility services from app detection while keeping them active</string>
+
+    <string name="toolbar_subtitle">LSPosed module</string>
+    <string name="status_not_configured">Not configured — select target apps below</string>
+    <string name="status_active">Hooking %1$d app(s) · hiding %2$d service(s)</string>
+
+    <string name="section_global_settings">Global Settings</string>
+    <string name="setting_hide_all">Hide All Services</string>
+    <string name="setting_hide_all_desc">Reports accessibility as fully disabled</string>
+    <string name="setting_touch_exploration">Hide Touch Exploration</string>
+    <string name="setting_touch_exploration_desc">Report touch exploration as disabled</string>
+    <string name="setting_verbose">Verbose Logging</string>
+    <string name="setting_verbose_desc">Detailed logs in LSPosed log viewer</string>
+
+    <string name="section_services">Accessibility Services</string>
+    <string name="section_targets">Target Apps</string>
+
+    <string name="search_services_hint">Search services</string>
+    <string name="search_apps_hint">Search apps</string>
+    <string name="no_services_found">No services match your search</string>
+    <string name="no_apps_found">No apps match your search</string>
+
+    <string name="show_system_apps">Show system apps</string>
+
+    <string name="services_count">%1$d/%2$d shown · %3$d hidden</string>
+    <string name="targets_count">%1$d selected · %2$d/%3$d shown</string>
 </resources>
