@@ -132,30 +132,3 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           sed -i "s/{VERSION}/$VERSION/g" .github/RELEASE_TEMPLATE.md
-          
-  nightly:
-    name: Nightly Build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-
-      - name: Build
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
-
-      - name: Upload Nightly
-        uses: actions/upload-artifact@v4
-        with:
-          name: hide-accessibility-nightly
-          path: app/build/outputs/apk/debug/*.apk
-          retention-days: 7
